@@ -91,7 +91,7 @@ function run() {
             let diffList = [];
             if (status === WorkflowStatus.started) {
                 const statusCommit = yield getServiceStatus();
-                diffList = yield getDiff(octo, owner, repo, slackMap, commit, statusCommit);
+                diffList = yield getDiff(octo, owner, repo, slackMap, statusCommit, commit);
             }
             const actorLink = getNameLink(slackMap, github.context.actor);
             const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(0, 7)}>`;

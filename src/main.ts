@@ -62,8 +62,8 @@ async function run(): Promise<void> {
         owner,
         repo,
         slackMap,
-        commit,
-        statusCommit
+        statusCommit,
+        commit
       )
     }
 
