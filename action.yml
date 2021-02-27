@@ -1,11 +1,43 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Slack Deploy Message Action'
+description: 'Sends a Slack message with deploy details'
+author: 'Matthew Elphick'
 inputs:
-  milliseconds: # change this
+  slack_webhook:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'The Slack Webhook'
+  github_token:
+    required: true
+    description: 'GitHub token'
+  commit:
+    description: 'The commit sha to use as the HEAD, defaults to the current sha'
+  service_status_url:
+    required: true
+    description: 'The url for the service status to check the commit field of'
+  status_commit_field:
+    description: 'The field with the commit sha'
+    default: 'BUILD_COMMIT'
+  repo:
+    description: 'The repo in form OWNER/NAME to use, defaults to current'
+  slack_map_repo:
+    required: true
+    description: 'The repo that the slack mapping file is in in form OWNER/NAME'
+  slack_map_file:
+    description: 'The path to the slack mapping file in the repo'
+    default: 'mapping.json'
+  channel:
+    required: true
+    description: 'The ID of the Slack Channel to send to'
+  icon_emoji:
+    description: 'The icon for messages from a legacy slack webhook'
+    default: ':tada:'
+  username:
+    description: 'The username for messages from a legacy slack webhook'
+    default: 'Workflow Deploy Message'
+  environment:
+    description: 'The environment being deployed to'
+  dry_run:
+    description: 'If set, wil skip sending message to slack'
+
 runs:
   using: 'node12'
   main: 'dist/index.js'

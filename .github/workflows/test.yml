@@ -12,13 +12,40 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: |
-          npm install
+          yarn install
       - run: |
-          npm run all
+          yarn all
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: ./
         with:
-          milliseconds: 1000
+          slack_webhook: ${{secrets.SLACK_WEBHOOK}}
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          commit: '25e6c46a48a3052c27b8f35e2e3cd513193ce9a8'
+          service_status_url: https://next.staging.threads.team/api/status
+          repo: ThreadsStyling/web-app-next-template
+          slack_map_repo: maael/github-slack-mapping
+          channel: UCATYBYG1
+          environment: staging
+          dry_run: true
+  local:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ACT Checkout
+        uses: actions/checkout@v2
+        if: ${{env.ACT}}
+        with:
+          path: ./slack-deploy-message-action
+      - run: ls
+      - uses: ./
+        with:
+          slack_webhook: ${{env.SLACK_WEBHOOK}}
+          github_token: ${{env.GITHUB_PAT_TOKEN}}
+          commit: '25e6c46a48a3052c27b8f35e2e3cd513193ce9a8'
+          service_status_url: https://next.staging.threads.team/api/status
+          repo: ThreadsStyling/web-app-next-template
+          slack_map_repo: maael/github-slack-mapping
+          channel: UCATYBYG1
+          environment: staging
