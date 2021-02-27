@@ -8,6 +8,8 @@ inputs:
   github_token:
     required: true
     description: 'GitHub token'
+  check_id:
+    description: 'The check id of an initial run of this action'
   commit:
     description: 'The commit sha to use as the HEAD, defaults to the current sha'
   service_status_url:
@@ -27,6 +29,9 @@ inputs:
   channels:
     required: true
     description: 'A comma separated list of IDs of the Slack Channels to send to'
+  failure_channels:
+    required: true
+    description: 'A comma separated list of IDs of the Slack Channels to send to on a failure'
   icon_emoji:
     description: 'The icon for messages from a legacy slack webhook'
     default: ':tada:'
@@ -41,7 +46,7 @@ inputs:
     description: 'The template to use for the base message, commits will be added as context blocks'
     default: ":octocat: $ACTOR_LINK $STATUS_ICON $STATUS_TEXT $ENV_ICON $ENV_LINK\n$COMMIT_LINK in $REPO_LINK"
   status:
-    description: The resulting status of the job, defaults to success
+    description: The resulting status of the job, defaults to deploying if not provided
 
 runs:
   using: 'node12'

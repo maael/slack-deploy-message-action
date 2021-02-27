@@ -11,10 +11,15 @@ const iconMap: {[k: string]: string} = {
 enum WorkflowStatus {
   'success' = 'success',
   'cancelled' = 'cancelled',
-  'failure' = 'failure'
+  'failure' = 'failure',
+  'started' = 'started'
 }
 
 const statusMap: Record<WorkflowStatus, {text: string; icon: string}> = {
+  started: {
+    text: 'deploying',
+    icon: ':hourglass_flowing_sand:'
+  },
   success: {
     text: 'deployed',
     icon: ':white_check_mark:'
@@ -32,7 +37,6 @@ const statusMap: Record<WorkflowStatus, {text: string; icon: string}> = {
 async function run(): Promise<void> {
   try {
     const commit = await getCommit()
-    const statusCommit = await getServiceStatus()
 
     const octo = github.getOctokit(core.getInput('github_token'))
 
@@ -43,22 +47,25 @@ async function run(): Promise<void> {
     const owner = repoParts[0]
     const repo = repoParts[1]
     const environment = core.getInput('environment') || 'unknown environment'
-    const status = core.getInput('status') || 'success'
+    const status = (core.getInput('status') || 'started') as WorkflowStatus
     core.debug(`status: ${status}`)
-    const statusDetails =
-      statusMap[status as WorkflowStatus] || statusMap.failure
+    const statusDetails = statusMap[status] || statusMap.failure
 
     const slackMap = await getSlackMap(octo)
     core.debug(JSON.stringify(slackMap))
 
-    const diffList = await getDiff(
-      octo,
-      owner,
-      repo,
-      slackMap,
-      commit,
-      statusCommit
-    )
+    let diffList: any[] = []
+    if (status === WorkflowStatus.started) {
+      const statusCommit = await getServiceStatus()
+      diffList = await getDiff(
+        octo,
+        owner,
+        repo,
+        slackMap,
+        commit,
+        statusCommit
+      )
+    }
 
     const actorLink = getNameLink(slackMap, github.context.actor)
     const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(
@@ -84,7 +91,7 @@ async function run(): Promise<void> {
       .replace('$STATUS_TEXT', statusDetails.text)
       .replace('$STATUS_ICON', statusDetails.icon)
 
-    await sendToSlack(message, diffList)
+    await sendToSlack(message, diffList, status)
   } catch (error) {
     core.setFailed(error.message)
   }
@@ -179,7 +186,9 @@ function formatMessage(slackMap: {[k: string]: string}, c: any) {
     c.committer?.login,
     c.committer?.html_url
   )
-  return `${committer} <${c.html_url}|${c.commit.message}>`
+  return `${committer} <${c.html_url}|${
+    c.commit.message.split('\n')[0] || '?'
+  }>`
 }
 
 async function getServiceStatus(): Promise<string> {
@@ -199,17 +208,23 @@ async function getServiceStatus(): Promise<string> {
 
 async function sendToSlack(
   message: string,
-  commits: {text: string; image?: string}[]
+  commits: {text: string; image?: string}[],
+  status: WorkflowStatus
 ) {
   if (core.getInput('dry_run')) {
     core.debug(`Skipping sending message: ${message}`)
     return
   }
   const channels = (core.getInput('channels') || '').split(',')
+  const failureChannels =
+    status === 'failure'
+      ? (core.getInput('failure_channels') || '').split(',')
+      : []
+  const allChannels = [...new Set(channels.concat(failureChannels))]
   const icon_emoji = core.getInput('icon_emoji') || ':tada:'
   const username = core.getInput('username') || 'Workflow Deploy Message'
   await Promise.all(
-    channels.map(async channel => {
+    allChannels.map(async channel => {
       try {
         await fetch(core.getInput('slack_webhook'), {
           method: 'POST',

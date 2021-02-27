@@ -52,8 +52,13 @@ var WorkflowStatus;
     WorkflowStatus["success"] = "success";
     WorkflowStatus["cancelled"] = "cancelled";
     WorkflowStatus["failure"] = "failure";
+    WorkflowStatus["started"] = "started";
 })(WorkflowStatus || (WorkflowStatus = {}));
 const statusMap = {
+    started: {
+        text: 'deploying',
+        icon: ':hourglass_flowing_sand:'
+    },
     success: {
         text: 'deployed',
         icon: ':white_check_mark:'
@@ -71,7 +76,6 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const commit = yield getCommit();
-            const statusCommit = yield getServiceStatus();
             const octo = github.getOctokit(core.getInput('github_token'));
             const repoFull = core.getInput('repo') ||
                 `${github.context.repo.repo}/${github.context.repo.owner}`;
@@ -79,13 +83,16 @@ function run() {
             const owner = repoParts[0];
             const repo = repoParts[1];
             const environment = core.getInput('environment') || 'unknown environment';
-            const status = core.getInput('status') || 'success';
+            const status = (core.getInput('status') || 'started');
             core.debug(`status: ${status}`);
             const statusDetails = statusMap[status] || statusMap.failure;
-            core.debug(`status details: ${JSON.stringify(statusDetails)}`);
             const slackMap = yield getSlackMap(octo);
             core.debug(JSON.stringify(slackMap));
-            const diffList = yield getDiff(octo, owner, repo, slackMap, commit, statusCommit);
+            let diffList = [];
+            if (status === WorkflowStatus.started) {
+                const statusCommit = yield getServiceStatus();
+                diffList = yield getDiff(octo, owner, repo, slackMap, commit, statusCommit);
+            }
             const actorLink = getNameLink(slackMap, github.context.actor);
             const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(0, 7)}>`;
             const repoLink = `<https://github.com/${owner}/${repo}|${owner}/${repo}>`;
@@ -103,9 +110,7 @@ function run() {
                 .replace('$ENV_ICON', environmentIcon)
                 .replace('$STATUS_TEXT', statusDetails.text)
                 .replace('$STATUS_ICON', statusDetails.icon);
-            // eslint-disable-next-line no-console
-            console.info(JSON.stringify(message, undefined, 2));
-            yield sendToSlack(message, diffList);
+            yield sendToSlack(message, diffList, status);
         }
         catch (error) {
             core.setFailed(error.message);
@@ -176,7 +181,7 @@ function getNameLink(slackMap, name, link) {
 function formatMessage(slackMap, c) {
     var _a, _b;
     const committer = getNameLink(slackMap, (_a = c.committer) === null || _a === void 0 ? void 0 : _a.login, (_b = c.committer) === null || _b === void 0 ? void 0 : _b.html_url);
-    return `${committer} <${c.html_url}|${c.commit.message}>`;
+    return `${committer} <${c.html_url}|${c.commit.message.split('\n')[0] || '?'}>`;
 }
 function getServiceStatus() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -194,16 +199,20 @@ function getServiceStatus() {
         }
     });
 }
-function sendToSlack(message, commits) {
+function sendToSlack(message, commits, status) {
     return __awaiter(this, void 0, void 0, function* () {
         if (core.getInput('dry_run')) {
             core.debug(`Skipping sending message: ${message}`);
             return;
         }
         const channels = (core.getInput('channels') || '').split(',');
+        const failureChannels = status === 'failure'
+            ? (core.getInput('failure_channels') || '').split(',')
+            : [];
+        const allChannels = [...new Set(channels.concat(failureChannels))];
         const icon_emoji = core.getInput('icon_emoji') || ':tada:';
         const username = core.getInput('username') || 'Workflow Deploy Message';
-        yield Promise.all(channels.map((channel) => __awaiter(this, void 0, void 0, function* () {
+        yield Promise.all(allChannels.map((channel) => __awaiter(this, void 0, void 0, function* () {
             try {
                 yield node_fetch_1.default(core.getInput('slack_webhook'), {
                     method: 'POST',

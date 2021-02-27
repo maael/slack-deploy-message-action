@@ -20,8 +20,22 @@ This action will send a nice deploy message in slack, including:
     service_status_url: https://next.staging.threads.team/api/status
     repo: ThreadsStyling/web-app-next-template
     slack_map_repo: maael/github-slack-mapping
-    channel: UCATYBYG1
+    channels: UCATYBYG1
+    failure_channels: UCATYBYG1
     environment: staging
+- uses: maael/slack-deploy-message-action
+  if: always()
+  with:
+    slack_webhook: ${{env.SLACK_WEBHOOK}}
+    github_token: ${{env.GITHUB_PAT_TOKEN}}
+    commit: '25e6c46a48a3052c27b8f35e2e3cd513193ce9a8'
+    service_status_url: https://next.staging.threads.team/api/status
+    repo: ThreadsStyling/web-app-next-template
+    slack_map_repo: maael/github-slack-mapping
+    channels: UCATYBYG1
+    failure_channels: UCATYBYG1
+    environment: staging
+    status: ${{job.status}}
 ```
 
 
@@ -54,6 +68,9 @@ inputs:
   channels:
     required: true
     description: 'A comma separated list of IDs of the Slack Channels to send to'
+  failure_channels:
+    required: true
+    description: 'A comma separated list of IDs of the Slack Channels to send to on a failure'
   icon_emoji:
     description: 'The icon for messages from a legacy slack webhook'
     default: ':tada:'
@@ -67,6 +84,8 @@ inputs:
   message_template:
     description: 'The template to use for the base message, commits will be added as context blocks'
     default: ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK'
+  status:
+    description: 'The job status, when not provided it causes a deploying message to be sent'
 ```
 
 ## Publishing
