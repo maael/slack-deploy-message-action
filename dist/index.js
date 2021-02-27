@@ -42,6 +42,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__webpack_require__(186));
 const node_fetch_1 = __importDefault(__webpack_require__(467));
 const github = __importStar(__webpack_require__(438));
+const iconMap = {
+    staging: ':large_orange_circle:',
+    production: ':large_green_circle:'
+};
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -57,10 +61,22 @@ function run() {
             const slackMap = yield getSlackMap(octo);
             core.debug(JSON.stringify(slackMap));
             const diffList = yield getDiff(octo, owner, repo, slackMap, commit, statusCommit);
-            const message = `Deployed <https://github.com/${owner}/${repo}/commit/${commit}|${commit}> in <https://github.com/${owner}/${repo}|${owner}/${repo}> to ${environment}:
-${diffList}
-    `;
-            yield sendToSlack(message);
+            const actorLink = getNameLink(slackMap, github.context.actor);
+            const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(0, 7)}>`;
+            const repoLink = `<https://github.com/${owner}/${repo}|${owner}/${repo}>`;
+            const { protocol, host } = new URL(core.getInput('service_status_url'));
+            const serviceLink = `${protocol}//${host}`;
+            const environmentIcon = iconMap[environment] || ':grey_question:';
+            const envLink = `<${serviceLink}|${environment}>`;
+            const template = core.getInput('message_template') ||
+                ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK';
+            const message = template
+                .replace('$ACTOR_LINK', actorLink)
+                .replace('$COMMIT_LINK', commitLink)
+                .replace('$REPO_LINK', repoLink)
+                .replace('$ENV_LINK', envLink)
+                .replace('$ENV_ICON', environmentIcon);
+            yield sendToSlack(message, diffList);
         }
         catch (error) {
             core.setFailed(error.message);
@@ -106,10 +122,13 @@ function getDiff(octokit, owner, repo, slackMap, base, head) {
             });
             const diffMessage = result.data.commits
                 .map(c => {
-                return formatMessage(slackMap, c);
+                var _a;
+                return {
+                    text: formatMessage(slackMap, c),
+                    image: (_a = c.author) === null || _a === void 0 ? void 0 : _a.avatar_url
+                };
             })
-                .reverse()
-                .join('\n');
+                .reverse();
             return diffMessage;
         }
         catch (e) {
@@ -118,13 +137,17 @@ function getDiff(octokit, owner, repo, slackMap, base, head) {
         }
     });
 }
-function formatMessage(slackMap, c) {
-    var _a, _b, _c;
-    const matchingSlack = slackMap[((_a = c.committer) === null || _a === void 0 ? void 0 : _a.login) || ''];
-    const committer = matchingSlack
+function getNameLink(slackMap, name, link) {
+    const matchingSlack = slackMap[name];
+    const nameLink = matchingSlack
         ? `<@${matchingSlack}>`
-        : `[${(_b = c.committer) === null || _b === void 0 ? void 0 : _b.login}](${(_c = c.committer) === null || _c === void 0 ? void 0 : _c.html_url})`;
-    return `- ${committer} <${c.html_url}|${c.commit.message}>`;
+        : `<${link || `https://github.com/${name}`}|${name}>`;
+    return nameLink;
+}
+function formatMessage(slackMap, c) {
+    var _a, _b;
+    const committer = getNameLink(slackMap, (_a = c.committer) === null || _a === void 0 ? void 0 : _a.login, (_b = c.committer) === null || _b === void 0 ? void 0 : _b.html_url);
+    return `${committer} <${c.html_url}|${c.commit.message}>`;
 }
 function getServiceStatus() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -142,33 +165,51 @@ function getServiceStatus() {
         }
     });
 }
-function sendToSlack(message) {
+function sendToSlack(message, commits) {
     return __awaiter(this, void 0, void 0, function* () {
         if (core.getInput('dry_run')) {
             core.debug(`Skipping sending message: ${message}`);
             return;
         }
-        try {
-            const channel = core.getInput('channel');
-            const icon_emoji = core.getInput('icon_emoji') || ':tada:';
-            const username = core.getInput('username') || 'Workflow Deploy Message';
-            yield node_fetch_1.default(core.getInput('slack_webhook'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: message,
-                    channel,
-                    username,
-                    icon_emoji
-                })
-            });
-        }
-        catch (e) {
-            core.error(`Failed to send to slack: ${e.message}`);
-            throw e;
-        }
+        const channels = (core.getInput('channels') || '').split(',');
+        const icon_emoji = core.getInput('icon_emoji') || ':tada:';
+        const username = core.getInput('username') || 'Workflow Deploy Message';
+        yield Promise.all(channels.map((channel) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield node_fetch_1.default(core.getInput('slack_webhook'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        channel,
+                        username,
+                        icon_emoji,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text: message
+                                }
+                            }
+                        ].concat(commits.map(c => ({
+                            type: 'context',
+                            elements: [
+                                c.image
+                                    ? { type: 'image', image_url: c.image, alt_text: 'icon' }
+                                    : null,
+                                { type: 'mrkdwn', text: c.text }
+                            ].filter(Boolean)
+                        })))
+                    })
+                });
+            }
+            catch (e) {
+                core.error(`Failed to send to slack channel ${channel}: ${e.message}`);
+                throw e;
+            }
+        })));
     });
 }
 function getCommit() {

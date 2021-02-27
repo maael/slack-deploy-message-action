@@ -2,6 +2,11 @@ import * as core from '@actions/core'
 import fetch from 'node-fetch'
 import * as github from '@actions/github'
 
+const iconMap: {[k: string]: string} = {
+  staging: ':large_orange_circle:',
+  production: ':large_green_circle:'
+}
+
 async function run(): Promise<void> {
   try {
     const commit = await getCommit()
@@ -29,11 +34,29 @@ async function run(): Promise<void> {
       statusCommit
     )
 
-    const message = `Deployed <https://github.com/${owner}/${repo}/commit/${commit}|${commit}> in <https://github.com/${owner}/${repo}|${owner}/${repo}> to ${environment}:
-${diffList}
-    `
+    const actorLink = getNameLink(slackMap, github.context.actor)
+    const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(
+      0,
+      7
+    )}>`
+    const repoLink = `<https://github.com/${owner}/${repo}|${owner}/${repo}>`
+    const {protocol, host} = new URL(core.getInput('service_status_url'))
+    const serviceLink = `${protocol}//${host}`
+    const environmentIcon = iconMap[environment] || ':grey_question:'
+    const envLink = `<${serviceLink}|${environment}>`
 
-    await sendToSlack(message)
+    const template =
+      core.getInput('message_template') ||
+      ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK'
+
+    const message = template
+      .replace('$ACTOR_LINK', actorLink)
+      .replace('$COMMIT_LINK', commitLink)
+      .replace('$REPO_LINK', repoLink)
+      .replace('$ENV_LINK', envLink)
+      .replace('$ENV_ICON', environmentIcon)
+
+    await sendToSlack(message, diffList)
   } catch (error) {
     core.setFailed(error.message)
   }
@@ -82,7 +105,7 @@ async function getDiff(
   slackMap: {[k: string]: string},
   base: string,
   head: string
-): Promise<unknown> {
+): Promise<{image?: string; text: string}[]> {
   try {
     const result = await octokit.request(
       'GET /repos/{owner}/{repo}/compare/{base}...{head}',
@@ -95,10 +118,12 @@ async function getDiff(
     )
     const diffMessage = result.data.commits
       .map(c => {
-        return formatMessage(slackMap, c)
+        return {
+          text: formatMessage(slackMap, c),
+          image: c.author?.avatar_url
+        }
       })
       .reverse()
-      .join('\n')
     return diffMessage
   } catch (e) {
     core.error(
@@ -108,12 +133,25 @@ async function getDiff(
   }
 }
 
-function formatMessage(slackMap: {[k: string]: string}, c: any) {
-  const matchingSlack = slackMap[c.committer?.login || '']
-  const committer = matchingSlack
+function getNameLink(
+  slackMap: {[k: string]: string},
+  name: string,
+  link?: string
+) {
+  const matchingSlack = slackMap[name]
+  const nameLink = matchingSlack
     ? `<@${matchingSlack}>`
-    : `[${c.committer?.login}](${c.committer?.html_url})`
-  return `- ${committer} <${c.html_url}|${c.commit.message}>`
+    : `<${link || `https://github.com/${name}`}|${name}>`
+  return nameLink
+}
+
+function formatMessage(slackMap: {[k: string]: string}, c: any) {
+  const committer = getNameLink(
+    slackMap,
+    c.committer?.login,
+    c.committer?.html_url
+  )
+  return `${committer} <${c.html_url}|${c.commit.message}>`
 }
 
 async function getServiceStatus(): Promise<string> {
@@ -131,31 +169,56 @@ async function getServiceStatus(): Promise<string> {
   }
 }
 
-async function sendToSlack(message: string) {
+async function sendToSlack(
+  message: string,
+  commits: {text: string; image?: string}[]
+) {
   if (core.getInput('dry_run')) {
     core.debug(`Skipping sending message: ${message}`)
     return
   }
-  try {
-    const channel = core.getInput('channel')
-    const icon_emoji = core.getInput('icon_emoji') || ':tada:'
-    const username = core.getInput('username') || 'Workflow Deploy Message'
-    await fetch(core.getInput('slack_webhook'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        text: message,
-        channel,
-        username,
-        icon_emoji
-      })
+  const channels = (core.getInput('channels') || '').split(',')
+  const icon_emoji = core.getInput('icon_emoji') || ':tada:'
+  const username = core.getInput('username') || 'Workflow Deploy Message'
+  await Promise.all(
+    channels.map(async channel => {
+      try {
+        await fetch(core.getInput('slack_webhook'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel,
+            username,
+            icon_emoji,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: message
+                }
+              } as any
+            ].concat(
+              commits.map(c => ({
+                type: 'context',
+                elements: [
+                  c.image
+                    ? {type: 'image', image_url: c.image, alt_text: 'icon'}
+                    : null,
+                  {type: 'mrkdwn', text: c.text}
+                ].filter(Boolean)
+              }))
+            )
+          })
+        })
+      } catch (e) {
+        core.error(`Failed to send to slack channel ${channel}: ${e.message}`)
+        throw e
+      }
     })
-  } catch (e) {
-    core.error(`Failed to send to slack: ${e.message}`)
-    throw e
-  }
+  )
 }
 
 async function getCommit(): Promise<string> {

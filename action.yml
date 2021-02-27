@@ -24,9 +24,9 @@ inputs:
   slack_map_file:
     description: 'The path to the slack mapping file in the repo'
     default: 'mapping.json'
-  channel:
+  channels:
     required: true
-    description: 'The ID of the Slack Channel to send to'
+    description: 'A comma separated list of IDs of the Slack Channels to send to'
   icon_emoji:
     description: 'The icon for messages from a legacy slack webhook'
     default: ':tada:'
@@ -37,6 +37,9 @@ inputs:
     description: 'The environment being deployed to'
   dry_run:
     description: 'If set, wil skip sending message to slack'
+  message_template:
+    description: 'The template to use for the base message, commits will be added as context blocks'
+    default: ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK'
 
 runs:
   using: 'node12'
