@@ -2,77 +2,73 @@
   <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
 </p>
 
-# Create a JavaScript Action using TypeScript
+# slack-deploy-message-action
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+This action will send a nice deploy message in slack, including:
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+- Listing the commits between what's on the service and what you're deploying
+- Pinging the authors of the commits via slack in the message
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
+## Usage
 
-## Create an action from this template
-
-Click the `Use this Template` and provide the new repo details for your action
-
-## Code in Main
-
-> First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
-
-Install the dependencies  
-```bash
-$ npm install
+```yml
+- uses: maael/slack-deploy-message-action
+  with:
+    slack_webhook: ${{env.SLACK_WEBHOOK}}
+    github_token: ${{env.GITHUB_PAT_TOKEN}}
+    commit: '25e6c46a48a3052c27b8f35e2e3cd513193ce9a8'
+    service_status_url: https://next.staging.threads.team/api/status
+    repo: ThreadsStyling/web-app-next-template
+    slack_map_repo: maael/github-slack-mapping
+    channel: UCATYBYG1
+    environment: staging
 ```
 
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run package
+
+## Inputs
+
+```yml
+inputs:
+  slack_webhook:
+    required: true
+    description: 'The Slack Webhook'
+  github_token:
+    required: true
+    description: 'GitHub token'
+  commit:
+    description: 'The commit sha to use as the HEAD, defaults to the current sha'
+  service_status_url:
+    required: true
+    description: 'The url for the service status to check the commit field of'
+  status_commit_field:
+    description: 'The field with the commit sha'
+    default: 'BUILD_COMMIT'
+  repo:
+    description: 'The repo in form OWNER/NAME to use, defaults to current'
+  slack_map_repo:
+    required: true
+    description: 'The repo that the slack mapping file is in in form OWNER/NAME'
+  slack_map_file:
+    description: 'The path to the slack mapping file in the repo'
+    default: 'mapping.json'
+  channel:
+    required: true
+    description: 'The ID of the Slack Channel to send to'
+  icon_emoji:
+    description: 'The icon for messages from a legacy slack webhook'
+    default: ':tada:'
+  username:
+    description: 'The username for messages from a legacy slack webhook'
+    default: 'Workflow Deploy Message'
+  environment:
+    description: 'The environment being deployed to'
+  dry_run:
+    description: 'If set, wil skip sending message to slack'
 ```
 
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
+## Publishing
 
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
-
-...
-```
-
-## Change action.yml
-
-The action.yml contains defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Publish to a distribution branch
-
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
+Actions are run from GitHub repos so we will checkin the packed dist folder.
 
 Then run [ncc](https://github.com/zeit/ncc) and push the results:
 ```bash
@@ -82,24 +78,12 @@ $ git commit -a -m "prod dependencies"
 $ git push origin releases/v1
 ```
 
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
+## Local Testing
 
-Your action is now published! :rocket: 
+Install [act](https://github.com/nektos/act) via brew.
 
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
+Then make a copy of the `.env.schema` in `.env`, and fill it out with the expected environment variables.
 
-## Validate
+You can then run `act -j local`.
 
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
-
-```yaml
-uses: ./
-with:
-  milliseconds: 1000
-```
-
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
-
-## Usage:
-
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+Make sure to run `yarn run build && yarn run package` first to use the latest version of the action.
