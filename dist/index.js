@@ -46,6 +46,27 @@ const iconMap = {
     staging: ':large_orange_circle:',
     production: ':large_green_circle:'
 };
+// eslint-disable-next-line no-shadow
+var WorkflowStatus;
+(function (WorkflowStatus) {
+    WorkflowStatus["success"] = "success";
+    WorkflowStatus["cancelled"] = "cancelled";
+    WorkflowStatus["failure"] = "failure";
+})(WorkflowStatus || (WorkflowStatus = {}));
+const statusMap = {
+    success: {
+        text: 'deployed',
+        icon: ':white_check_mark:'
+    },
+    cancelled: {
+        text: 'cancelled',
+        icon: ':grey_question:'
+    },
+    failure: {
+        text: 'deployment failure',
+        icon: ':x:'
+    }
+};
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -58,6 +79,10 @@ function run() {
             const owner = repoParts[0];
             const repo = repoParts[1];
             const environment = core.getInput('environment') || 'unknown environment';
+            const status = core.getInput('status') || 'success';
+            core.debug(`status: ${status}`);
+            const statusDetails = statusMap[status] || statusMap.failure;
+            core.debug(`status details: ${JSON.stringify(statusDetails)}`);
             const slackMap = yield getSlackMap(octo);
             core.debug(JSON.stringify(slackMap));
             const diffList = yield getDiff(octo, owner, repo, slackMap, commit, statusCommit);
@@ -69,13 +94,17 @@ function run() {
             const environmentIcon = iconMap[environment] || ':grey_question:';
             const envLink = `<${serviceLink}|${environment}>`;
             const template = core.getInput('message_template') ||
-                ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK';
+                ':octocat: $ACTOR_LINK $STATUS_ICON $STATUS_TEXT $ENV_ICON $ENV_LINK\n$COMMIT_LINK in $REPO_LINK';
             const message = template
                 .replace('$ACTOR_LINK', actorLink)
                 .replace('$COMMIT_LINK', commitLink)
                 .replace('$REPO_LINK', repoLink)
                 .replace('$ENV_LINK', envLink)
-                .replace('$ENV_ICON', environmentIcon);
+                .replace('$ENV_ICON', environmentIcon)
+                .replace('$STATUS_TEXT', statusDetails.text)
+                .replace('$STATUS_ICON', statusDetails.icon);
+            // eslint-disable-next-line no-console
+            console.info(JSON.stringify(message, undefined, 2));
             yield sendToSlack(message, diffList);
         }
         catch (error) {

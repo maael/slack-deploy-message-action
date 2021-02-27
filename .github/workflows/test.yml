@@ -49,4 +49,4 @@ jobs:
           slack_map_repo: maael/github-slack-mapping
           channels: UCATYBYG1
           environment: staging
-          message_template: '$ENV_LINK $REPO_LINK [$COMMIT_LINK] deployed by $ACTOR_LINK'
+          status: success

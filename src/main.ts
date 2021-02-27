@@ -7,6 +7,28 @@ const iconMap: {[k: string]: string} = {
   production: ':large_green_circle:'
 }
 
+// eslint-disable-next-line no-shadow
+enum WorkflowStatus {
+  'success' = 'success',
+  'cancelled' = 'cancelled',
+  'failure' = 'failure'
+}
+
+const statusMap: Record<WorkflowStatus, {text: string; icon: string}> = {
+  success: {
+    text: 'deployed',
+    icon: ':white_check_mark:'
+  },
+  cancelled: {
+    text: 'cancelled',
+    icon: ':grey_question:'
+  },
+  failure: {
+    text: 'deployment failure',
+    icon: ':x:'
+  }
+}
+
 async function run(): Promise<void> {
   try {
     const commit = await getCommit()
@@ -21,6 +43,10 @@ async function run(): Promise<void> {
     const owner = repoParts[0]
     const repo = repoParts[1]
     const environment = core.getInput('environment') || 'unknown environment'
+    const status = core.getInput('status') || 'success'
+    core.debug(`status: ${status}`)
+    const statusDetails =
+      statusMap[status as WorkflowStatus] || statusMap.failure
 
     const slackMap = await getSlackMap(octo)
     core.debug(JSON.stringify(slackMap))
@@ -47,7 +73,7 @@ async function run(): Promise<void> {
 
     const template =
       core.getInput('message_template') ||
-      ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK'
+      ':octocat: $ACTOR_LINK $STATUS_ICON $STATUS_TEXT $ENV_ICON $ENV_LINK\n$COMMIT_LINK in $REPO_LINK'
 
     const message = template
       .replace('$ACTOR_LINK', actorLink)
@@ -55,6 +81,8 @@ async function run(): Promise<void> {
       .replace('$REPO_LINK', repoLink)
       .replace('$ENV_LINK', envLink)
       .replace('$ENV_ICON', environmentIcon)
+      .replace('$STATUS_TEXT', statusDetails.text)
+      .replace('$STATUS_ICON', statusDetails.icon)
 
     await sendToSlack(message, diffList)
   } catch (error) {

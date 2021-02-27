@@ -39,7 +39,9 @@ inputs:
     description: 'If set, wil skip sending message to slack'
   message_template:
     description: 'The template to use for the base message, commits will be added as context blocks'
-    default: ':octocat: $ENV_ICON $ACTOR_LINK deployed $COMMIT_LINK in $REPO_LINK to $ENV_LINK'
+    default: ":octocat: $ACTOR_LINK $STATUS_ICON $STATUS_TEXT $ENV_ICON $ENV_LINK\n$COMMIT_LINK in $REPO_LINK"
+  status:
+    description: The resulting status of the job, defaults to success
 
 runs:
   using: 'node12'
