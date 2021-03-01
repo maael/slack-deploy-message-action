@@ -92,6 +92,7 @@ function run() {
             if (status === WorkflowStatus.started) {
                 const statusCommit = yield getServiceStatus();
                 diffList = yield getDiff(octo, owner, repo, slackMap, statusCommit, commit);
+                core.info(`[${owner}/${repo}] diff ${statusCommit}...${commit}: ${diffList.length} commits`);
             }
             const actorLink = getNameLink(slackMap, github.context.actor);
             const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(0, 7)}>`;
@@ -188,7 +189,9 @@ function getServiceStatus() {
         try {
             const serviceUrl = core.getInput('service_status_url');
             const statusCommitField = core.getInput('status_commit_field') || 'BUILD_COMMIT';
-            const status = yield node_fetch_1.default(serviceUrl);
+            const serviceUrlParts = new URL(serviceUrl);
+            serviceUrlParts.searchParams.append('cb', `${Math.floor(Math.random() * 10000)}`);
+            const status = yield node_fetch_1.default(serviceUrlParts.toString());
             const statusJson = yield status.json();
             const statusCommit = statusJson[statusCommitField];
             return statusCommit;

@@ -65,6 +65,9 @@ async function run(): Promise<void> {
         statusCommit,
         commit
       )
+      core.info(
+        `[${owner}/${repo}] diff ${statusCommit}...${commit}: ${diffList.length} commits`
+      )
     }
 
     const actorLink = getNameLink(slackMap, github.context.actor)
@@ -196,7 +199,12 @@ async function getServiceStatus(): Promise<string> {
     const serviceUrl = core.getInput('service_status_url')
     const statusCommitField =
       core.getInput('status_commit_field') || 'BUILD_COMMIT'
-    const status = await fetch(serviceUrl)
+    const serviceUrlParts = new URL(serviceUrl)
+    serviceUrlParts.searchParams.append(
+      'cb',
+      `${Math.floor(Math.random() * 10000)}`
+    )
+    const status = await fetch(serviceUrlParts.toString())
     const statusJson = await status.json()
     const statusCommit = statusJson[statusCommitField]
     return statusCommit
