@@ -78,7 +78,7 @@ function run() {
             const commit = yield getCommit();
             const octo = github.getOctokit(core.getInput('github_token'));
             const repoFull = core.getInput('repo') ||
-                `${github.context.repo.repo}/${github.context.repo.owner}`;
+                `${github.context.repo.owner}/${github.context.repo.repo}`;
             const repoParts = repoFull.split('/');
             const owner = repoParts[0];
             const repo = repoParts[1];
