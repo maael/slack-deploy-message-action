@@ -44,7 +44,9 @@ const node_fetch_1 = __importDefault(__webpack_require__(467));
 const github = __importStar(__webpack_require__(438));
 const iconMap = {
     staging: ':large_orange_circle:',
-    production: ':large_green_circle:'
+    production: ':large_green_circle:',
+    nightly: ':night_with_stars:',
+    uat: ':sleuth_or_spy:'
 };
 // eslint-disable-next-line no-shadow
 var WorkflowStatus;
@@ -89,7 +91,7 @@ function run() {
             const slackMap = yield getSlackMap(octo);
             core.debug(JSON.stringify(slackMap));
             let diffList = [];
-            if (status === WorkflowStatus.started) {
+            if ([WorkflowStatus.started, WorkflowStatus.failure].includes(status)) {
                 const statusCommit = yield getServiceStatus();
                 diffList = yield getDiff(octo, owner, repo, slackMap, statusCommit, commit);
                 core.info(`[${owner}/${repo}] diff ${statusCommit}...${commit}: ${diffList.length} commits`);

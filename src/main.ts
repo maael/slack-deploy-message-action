@@ -4,7 +4,9 @@ import * as github from '@actions/github'
 
 const iconMap: {[k: string]: string} = {
   staging: ':large_orange_circle:',
-  production: ':large_green_circle:'
+  production: ':large_green_circle:',
+  nightly: ':night_with_stars:',
+  uat: ':sleuth_or_spy:'
 }
 
 // eslint-disable-next-line no-shadow
@@ -55,7 +57,7 @@ async function run(): Promise<void> {
     core.debug(JSON.stringify(slackMap))
 
     let diffList: any[] = []
-    if (status === WorkflowStatus.started) {
+    if ([WorkflowStatus.started, WorkflowStatus.failure].includes(status)) {
       const statusCommit = await getServiceStatus()
       diffList = await getDiff(
         octo,
