@@ -88,13 +88,17 @@ async function run(): Promise<void> {
       ':octocat: $ACTOR_LINK $STATUS_ICON $STATUS_TEXT $ENV_ICON $ENV_LINK\n$COMMIT_LINK in $REPO_LINK'
 
     const message = template
-      .replace('$ACTOR_LINK', actorLink)
+      .replace(
+        '$ACTOR_LINK',
+        environment === 'nightly' && status !== 'failure' ? '' : actorLink
+      )
       .replace('$COMMIT_LINK', commitLink)
       .replace('$REPO_LINK', repoLink)
       .replace('$ENV_LINK', envLink)
       .replace('$ENV_ICON', environmentIcon)
       .replace('$STATUS_TEXT', statusDetails.text)
       .replace('$STATUS_ICON', statusDetails.icon)
+      .replace(/\s\s/g, ' ')
 
     await sendToSlack(message, diffList, status)
   } catch (error) {
@@ -231,7 +235,8 @@ async function sendToSlack(
       ? (core.getInput('failure_channels') || '').split(',')
       : []
   const allChannels = [...new Set(channels.concat(failureChannels))]
-  const icon_emoji = core.getInput('icon_emoji') || ':tada:'
+  const icon_emoji =
+    core.getInput('icon_emoji') || statusMap[status]?.icon || ':tada:'
   const username = core.getInput('username') || 'Workflow Deploy Message'
   await Promise.all(
     allChannels.map(async channel => {

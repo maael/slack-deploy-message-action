@@ -106,13 +106,14 @@ function run() {
             const template = core.getInput('message_template') ||
                 ':octocat: $ACTOR_LINK $STATUS_ICON $STATUS_TEXT $ENV_ICON $ENV_LINK\n$COMMIT_LINK in $REPO_LINK';
             const message = template
-                .replace('$ACTOR_LINK', actorLink)
+                .replace('$ACTOR_LINK', environment === 'nightly' && status !== 'failure' ? '' : actorLink)
                 .replace('$COMMIT_LINK', commitLink)
                 .replace('$REPO_LINK', repoLink)
                 .replace('$ENV_LINK', envLink)
                 .replace('$ENV_ICON', environmentIcon)
                 .replace('$STATUS_TEXT', statusDetails.text)
-                .replace('$STATUS_ICON', statusDetails.icon);
+                .replace('$STATUS_ICON', statusDetails.icon)
+                .replace(/\s\s/g, ' ');
             yield sendToSlack(message, diffList, status);
         }
         catch (error) {
@@ -205,6 +206,7 @@ function getServiceStatus() {
     });
 }
 function sendToSlack(message, commits, status) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         if (core.getInput('dry_run')) {
             core.debug(`Skipping sending message: ${message}`);
@@ -215,7 +217,7 @@ function sendToSlack(message, commits, status) {
             ? (core.getInput('failure_channels') || '').split(',')
             : [];
         const allChannels = [...new Set(channels.concat(failureChannels))];
-        const icon_emoji = core.getInput('icon_emoji') || ':tada:';
+        const icon_emoji = core.getInput('icon_emoji') || ((_a = statusMap[status]) === null || _a === void 0 ? void 0 : _a.icon) || ':tada:';
         const username = core.getInput('username') || 'Workflow Deploy Message';
         yield Promise.all(allChannels.map((channel) => __awaiter(this, void 0, void 0, function* () {
             try {
