@@ -53,7 +53,10 @@ async function run(): Promise<void> {
     core.debug(`status: ${status}`)
     const statusDetails = statusMap[status] || statusMap.failure
 
-    const slackMap = await getSlackMap(octo)
+    const [slackMap, commitData] = await Promise.all([
+      getSlackMap(octo),
+      getCommitData(octo, owner, repo, commit)
+    ])
     core.debug(JSON.stringify(slackMap))
 
     let diffList: any[] = []
@@ -72,7 +75,10 @@ async function run(): Promise<void> {
       )
     }
 
-    const actorLink = getNameLink(slackMap, github.context.actor)
+    const actorLink = getNameLink(
+      slackMap,
+      commitData?.author?.login || github.context.actor
+    )
     const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(
       0,
       7
@@ -140,6 +146,24 @@ async function getSlackMap(
   }
 
   return downloaded
+}
+
+async function getCommitData(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  commit: string
+) {
+  try {
+    const result = await octokit.request(
+      'GET /repos/{owner}/{repo}/commits/{ref}',
+      {owner, repo, ref: commit}
+    )
+    return result.data
+  } catch (e) {
+    core.warning(`Failed to get commit data: ${e.message}`)
+    return undefined
+  }
 }
 
 async function getDiff(

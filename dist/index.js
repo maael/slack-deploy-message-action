@@ -75,6 +75,7 @@ const statusMap = {
     }
 };
 function run() {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const commit = yield getCommit();
@@ -88,7 +89,10 @@ function run() {
             const status = (core.getInput('status') || 'started');
             core.debug(`status: ${status}`);
             const statusDetails = statusMap[status] || statusMap.failure;
-            const slackMap = yield getSlackMap(octo);
+            const [slackMap, commitData] = yield Promise.all([
+                getSlackMap(octo),
+                getCommitData(octo, owner, repo, commit)
+            ]);
             core.debug(JSON.stringify(slackMap));
             let diffList = [];
             if ([WorkflowStatus.started, WorkflowStatus.failure].includes(status)) {
@@ -96,7 +100,7 @@ function run() {
                 diffList = yield getDiff(octo, owner, repo, slackMap, statusCommit, commit);
                 core.info(`[${owner}/${repo}] diff ${statusCommit}...${commit}: ${diffList.length} commits`);
             }
-            const actorLink = getNameLink(slackMap, github.context.actor);
+            const actorLink = getNameLink(slackMap, ((_a = commitData === null || commitData === void 0 ? void 0 : commitData.author) === null || _a === void 0 ? void 0 : _a.login) || github.context.actor);
             const commitLink = `<https://github.com/${owner}/${repo}/commit/${commit}|${commit.slice(0, 7)}>`;
             const repoLink = `<https://github.com/${owner}/${repo}|${owner}/${repo}>`;
             const { protocol, host } = new URL(core.getInput('service_status_url'));
@@ -147,6 +151,18 @@ function getSlackMap(octokit) {
             core.error(`Failed to download slack map: ${e.message}`);
         }
         return downloaded;
+    });
+}
+function getCommitData(octokit, owner, repo, commit) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const result = yield octokit.request('GET /repos/{owner}/{repo}/commits/{ref}', { owner, repo, ref: commit });
+            return result.data;
+        }
+        catch (e) {
+            core.warning(`Failed to get commit data: ${e.message}`);
+            return undefined;
+        }
     });
 }
 function getDiff(octokit, owner, repo, slackMap, base, head) {
