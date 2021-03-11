@@ -214,14 +214,8 @@ function getNameLink(
 }
 
 function formatMessage(slackMap: {[k: string]: string}, c: any) {
-  const committer = getNameLink(
-    slackMap,
-    c.committer?.login,
-    c.committer?.html_url
-  )
-  return `${committer} <${c.html_url}|${
-    c.commit.message.split('\n')[0] || '?'
-  }>`
+  const author = getNameLink(slackMap, c.author?.login, c.author?.html_url)
+  return `${author} <${c.html_url}|${c.commit.message.split('\n')[0] || '?'}>`
 }
 
 async function getServiceStatus(): Promise<string> {

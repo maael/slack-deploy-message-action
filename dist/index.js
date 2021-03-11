@@ -200,8 +200,8 @@ function getNameLink(slackMap, name, link) {
 }
 function formatMessage(slackMap, c) {
     var _a, _b;
-    const committer = getNameLink(slackMap, (_a = c.committer) === null || _a === void 0 ? void 0 : _a.login, (_b = c.committer) === null || _b === void 0 ? void 0 : _b.html_url);
-    return `${committer} <${c.html_url}|${c.commit.message.split('\n')[0] || '?'}>`;
+    const author = getNameLink(slackMap, (_a = c.author) === null || _a === void 0 ? void 0 : _a.login, (_b = c.author) === null || _b === void 0 ? void 0 : _b.html_url);
+    return `${author} <${c.html_url}|${c.commit.message.split('\n')[0] || '?'}>`;
 }
 function getServiceStatus() {
     return __awaiter(this, void 0, void 0, function* () {
