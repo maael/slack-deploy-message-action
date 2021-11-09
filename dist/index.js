@@ -207,10 +207,15 @@ function getServiceStatus() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const serviceUrl = core.getInput('service_status_url');
+            const serviceAuth = core.getInput('service_status_auth');
             const statusCommitField = core.getInput('status_commit_field') || 'BUILD_COMMIT';
             const serviceUrlParts = new URL(serviceUrl);
             serviceUrlParts.searchParams.append('cb', `${Math.floor(Math.random() * 10000)}`);
-            const status = yield node_fetch_1.default(serviceUrlParts.toString());
+            const headers = {};
+            if (serviceAuth) {
+                headers['Authorization'] = serviceAuth;
+            }
+            const status = yield node_fetch_1.default(serviceUrlParts.toString(), { headers });
             const statusJson = yield status.json();
             const statusCommit = statusJson[statusCommitField];
             return statusCommit;
