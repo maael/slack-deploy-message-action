@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import fetch from 'node-fetch'
+import fetch, {HeadersInit} from 'node-fetch'
 import * as github from '@actions/github'
 
 const iconMap: {[k: string]: string} = {
@@ -221,6 +221,7 @@ function formatMessage(slackMap: {[k: string]: string}, c: any) {
 async function getServiceStatus(): Promise<string> {
   try {
     const serviceUrl = core.getInput('service_status_url')
+    const serviceAuth = core.getInput('service_status_auth')
     const statusCommitField =
       core.getInput('status_commit_field') || 'BUILD_COMMIT'
     const serviceUrlParts = new URL(serviceUrl)
@@ -228,7 +229,11 @@ async function getServiceStatus(): Promise<string> {
       'cb',
       `${Math.floor(Math.random() * 10000)}`
     )
-    const status = await fetch(serviceUrlParts.toString())
+    const headers: HeadersInit = {}
+    if (serviceAuth) {
+      headers['Authorization'] = serviceAuth
+    }
+    const status = await fetch(serviceUrlParts.toString(), {headers})
     const statusJson = await status.json()
     const statusCommit = statusJson[statusCommitField]
     return statusCommit
