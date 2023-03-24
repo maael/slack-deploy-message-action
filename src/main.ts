@@ -123,17 +123,19 @@ async function getSlackMap(
   )
   let result
   try {
-    result = ((await octokit.request(
+    result = (await octokit.request(
       'GET /repos/{owner}/{repo}/contents/{path}',
       {
         owner: repoParts[0],
         repo: repoParts[1],
         path: slackMapFile
       }
-    )) as unknown) as {data: {download_url: string}}
+    )) as unknown as {data: {download_url: string}}
   } catch (e) {
     core.error(
-      `Failed to get slack map ${repoParts[0]}/${repoParts[1]} in ${slackMapFile}: ${e.message}`
+      `Failed to get slack map ${repoParts[0]}/${
+        repoParts[1]
+      } in ${slackMapFile}: ${(e as Error).message}`
     )
     throw e
   }
@@ -142,7 +144,7 @@ async function getSlackMap(
   try {
     downloaded = await (await fetch(result.data.download_url)).json()
   } catch (e) {
-    core.error(`Failed to download slack map: ${e.message}`)
+    core.error(`Failed to download slack map: ${(e as Error).message}`)
   }
 
   return downloaded
@@ -161,7 +163,7 @@ async function getCommitData(
     )
     return result.data
   } catch (e) {
-    core.warning(`Failed to get commit data: ${e.message}`)
+    core.warning(`Failed to get commit data: ${(e as Error).message}`)
     return undefined
   }
 }
@@ -195,7 +197,9 @@ async function getDiff(
     return diffMessage
   } catch (e) {
     core.error(
-      `Failed to get diff for ${owner}/${repo} ${base}...${head}: ${e.message}`
+      `Failed to get diff for ${owner}/${repo} ${base}...${head}: ${
+        (e as Error).message
+      }`
     )
     throw e
   }
@@ -238,7 +242,7 @@ async function getServiceStatus(): Promise<string> {
     const statusCommit = statusJson[statusCommitField]
     return statusCommit
   } catch (e) {
-    core.error(`Failed to get service status: ${e.message}`)
+    core.error(`Failed to get service status: ${(e as Error).message}`)
     throw e
   }
 }
@@ -295,7 +299,9 @@ async function sendToSlack(
           })
         })
       } catch (e) {
-        core.error(`Failed to send to slack channel ${channel}: ${e.message}`)
+        core.error(
+          `Failed to send to slack channel ${channel}: ${(e as Error).message}`
+        )
         throw e
       }
     })

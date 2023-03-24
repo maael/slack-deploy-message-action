@@ -51,5 +51,5 @@ inputs:
     description: The resulting status of the job, defaults to deploying if not provided
 
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
